@@ -1,0 +1,82 @@
+import socket
+import threading
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+# Data storage for monitoring
+tcp_bytes = []
+udp_bytes = []
+time_stamps = []
+
+# Function to update the plot
+def update_plot():
+    plt.clf()
+    plt.title("Network Traffic Monitoring")
+    plt.xlabel("Time")
+    plt.ylabel("Bytes Received")
+    plt.plot(time_stamps, tcp_bytes, label="TCP Bytes", color="blue")
+    plt.plot(time_stamps, udp_bytes, label="UDP Bytes", color="green")
+    plt.legend()
+    plt.pause(0.1)
+
+# Monitoring function
+def monitor_traffic(protocol, bytes_received):
+    time_stamps.append(datetime.now().strftime("%H:%M:%S"))
+    if protocol == "TCP":
+        tcp_bytes.append(bytes_received)
+    else:
+        udp_bytes.append(bytes_received)
+    update_plot()
+
+plt.ion()  # Interactive plotting
+
+# TCP Server
+def tcp_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(("localhost", 8080))
+    server_socket.listen(1)
+    print("TCP Server listening on port 8080")
+    conn, addr = server_socket.accept()
+    print("TCP Connection from", addr)
+    while True:
+        data = conn.recv(1024)
+        if not data:
+            break
+        print("TCP Received:", data)
+        monitor_traffic("TCP", len(data))
+    conn.close()
+
+# TCP Client
+def tcp_client():
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect(("localhost", 8080))
+    for i in range(10):
+        message = f"Hello TCP {i}"
+        client_socket.send(message.encode())
+    client_socket.close()
+
+# UDP Server
+def udp_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_socket.bind(("localhost", 9090))
+    print("UDP Server listening on port 9090")
+    while True:
+        data, addr = server_socket.recvfrom(1024)
+        print("UDP Received:", data)
+        monitor_traffic("UDP", len(data))
+
+# UDP Client
+def udp_client():
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    for i in range(10):
+        message = f"Hello UDP {i}"
+        client_socket.sendto(message.encode(), ("localhost", 9090))
+    client_socket.close()
+
+# Start TCP and UDP Servers and Clients
+threading.Thread(target=tcp_server, daemon=True).start()
+threading.Thread(target=tcp_client, daemon=True).start()
+threading.Thread(target=udp_server, daemon=True).start()
+threading.Thread(target=udp_client, daemon=True).start()
+
+plt.show()
